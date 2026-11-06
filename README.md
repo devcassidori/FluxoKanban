@@ -11,7 +11,9 @@ Sistema web responsivo de gestão Kanban (**projetos → quadros → colunas →
 ### 1. Crie o projeto no Supabase
 
 1. Crie um projeto em [supabase.com](https://supabase.com).
-2. Rode as migrações de `supabase/migrations/`, **em ordem**:
+2. Abra o **SQL Editor**, cole **todo** o conteúdo de `supabase/setup.sql` e clique em **Run**. Esse arquivo junta as migrações abaixo, pode ser rodado mais de uma vez e, no fim, lista as funções criadas para conferência.
+
+   As mesmas migrações estão separadas em `supabase/migrations/`, **em ordem**:
    1. `20261106000000_init.sql`
    2. `20261106010000_profiles_fix.sql`: cria o perfil de contas antigas, adiciona a função de salvar perfil e o bucket de fotos
 
