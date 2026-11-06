@@ -38,7 +38,7 @@ export function NameDescriptionDialog<T>({ open, onClose, title, submitLabel, in
     try {
       const res = await onSubmit({ name, description });
       if (res.ok) onDone(res.data);
-      else setError(t(errorKey(res.error)));
+      else setError(t(errorKey(res.error)) + (res.error === "generic" && res.detail ? ` (${res.detail})` : ""));
     } catch {
       setError(t("error.network"));
     } finally {

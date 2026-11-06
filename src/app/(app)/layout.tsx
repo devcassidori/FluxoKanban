@@ -4,10 +4,15 @@ import type { Profile } from "@/lib/types";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { supabase, user } = await requireUser();
-  const [{ data: profile }, { data: projects }] = await Promise.all([
-    supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).single(),
+  let [{ data: profile }, { data: projects }] = await Promise.all([
+    supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).maybeSingle(),
     supabase.from("projects").select("id, name, boards(id, name, created_at)").is("archived_at", null).order("name"),
   ]);
+  if (!profile) {
+    // conta criada antes do gatilho de perfis: cria agora
+    await supabase.rpc("ensure_profile");
+    ({ data: profile } = await supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).maybeSingle());
+  }
   const nav: NavProject[] = (projects ?? []).map((p) => ({
     id: p.id,
     name: p.name,

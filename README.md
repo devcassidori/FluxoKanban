@@ -11,9 +11,11 @@ Sistema web responsivo de gestão Kanban (**projetos → quadros → colunas →
 ### 1. Crie o projeto no Supabase
 
 1. Crie um projeto em [supabase.com](https://supabase.com).
-2. Rode a migração `supabase/migrations/20261106000000_init.sql`:
-   - pelo **SQL Editor** do painel (cole e execute), ou
-   - pela CLI: `supabase link --project-ref <ref>` e depois `supabase db push`.
+2. Rode as migrações de `supabase/migrations/`, **em ordem**:
+   1. `20261106000000_init.sql`
+   2. `20261106010000_profiles_fix.sql`: cria o perfil de contas antigas, adiciona a função de salvar perfil e o bucket de fotos
+
+   Rode pelo **SQL Editor** do painel (cole e execute cada arquivo) ou pela CLI: `supabase link --project-ref <ref>` e depois `supabase db push`.
 3. Em **Authentication → Providers → Email**, deixe **Confirm email** ligado.
 4. Em **Authentication → URL Configuration**:
    - **Site URL:** a URL pública do app (ex.: `https://seu-app.vercel.app`)
@@ -48,7 +50,8 @@ npm test          # regras de prazo, filtros e posições
 npm run typecheck
 # Regras do banco (RLS, papéis, cota, arquivamento) contra um Postgres local:
 psql -v ON_ERROR_STOP=1 -d <db> -f supabase/tests/supabase_stub.sql \
-  -f supabase/migrations/20261106000000_init.sql -f supabase/tests/rls_test.sql
+  -f supabase/migrations/20261106000000_init.sql -f supabase/migrations/20261106010000_profiles_fix.sql \
+  -f supabase/tests/rls_test.sql -f supabase/tests/profiles_test.sql
 ```
 
 ---

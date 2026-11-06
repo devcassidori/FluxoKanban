@@ -8,13 +8,14 @@ const APP_CODE = /^[a-z_]+$/;
 export function pgFail(err: PostgrestError | { message?: string; code?: string; details?: string } | null): { ok: false; error: string; detail?: string } {
   if (!err) return { ok: false, error: "generic" };
   const msg = err.message ?? "";
+  // aparece nos logs do servidor (Vercel → Logs) para diagnóstico
+  console.error("[db]", err.code ?? "", msg, err.details ?? "");
   if (err.code === "P0001" && APP_CODE.test(msg)) return { ok: false, error: msg, detail: err.details || undefined };
   if (err.code === "42501" || /row-level security|permission denied/i.test(msg)) return { ok: false, error: "forbidden" };
   if (err.code === "23514") return { ok: false, error: /name|title/.test(msg) ? "name_required" : "too_long" };
   if (err.code === "23503") return { ok: false, error: "not_found" };
   if (err.code === "PGRST116") return { ok: false, error: "not_found" };
-  console.error("[db]", err.code, msg);
-  return { ok: false, error: "generic" };
+  return { ok: false, error: "generic", detail: err.code };
 }
 
 export const ok = <T,>(data: T): ActionResult<T> => ({ ok: true, data });

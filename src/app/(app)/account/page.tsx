@@ -6,6 +6,11 @@ export const metadata = { title: "Minha conta" };
 
 export default async function AccountPage() {
   const { supabase, user } = await requireUser();
-  const { data } = await supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).single();
-  return <AccountView profile={data as Profile} />;
+  let { data } = await supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).maybeSingle();
+  if (!data) {
+    await supabase.rpc("ensure_profile");
+    ({ data } = await supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).maybeSingle());
+  }
+  const profile: Profile = (data as Profile) ?? { id: user.id, email: user.email ?? "", name: "", avatar_url: null, locale: "pt-BR" };
+  return <AccountView profile={profile} />;
 }
