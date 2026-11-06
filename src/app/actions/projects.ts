@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { getServerClient } from "@/lib/supabase/server";
 import { getAdminClient, IMAGE_BUCKET } from "@/lib/supabase/admin";
+import { ensureProfile } from "@/lib/ensure-profile";
 import { fail, isUuid, ok, pgFail, str } from "@/lib/action-utils";
 import { sendInviteEmail } from "@/lib/email";
 import { appConfig } from "@/lib/config";
@@ -31,6 +32,7 @@ export async function createProject(input: { name: string; description?: string 
   if (!name) return fail("name_required");
   const { supabase, user } = await client();
   if (!user) return fail("forbidden");
+  await ensureProfile(supabase, user);
   const { data, error } = await supabase.rpc("create_project", { p_name: name, p_description: str(input.description, 2000) });
   if (error) return pgFail(error);
   revalidatePath("/", "layout");
@@ -162,7 +164,9 @@ export async function cancelInvitation(projectId: string, invitationId: string):
 
 export async function acceptInvitation(token: string): Promise<ActionResult<string>> {
   if (!isUuid(token)) return fail("invitation_not_found");
-  const { supabase } = await client();
+  const { supabase, user } = await client();
+  if (!user) return fail("forbidden");
+  await ensureProfile(supabase, user);
   const { data, error } = await supabase.rpc("accept_invitation", { p_token: token });
   if (error) return pgFail(error);
   revalidatePath("/", "layout");

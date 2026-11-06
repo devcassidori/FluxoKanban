@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/supabase/server";
+import { ensureProfile } from "@/lib/ensure-profile";
 import { AccountView } from "./account-view";
 import type { Profile } from "@/lib/types";
 
@@ -8,7 +9,7 @@ export default async function AccountPage() {
   const { supabase, user } = await requireUser();
   let { data } = await supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).maybeSingle();
   if (!data) {
-    await supabase.rpc("ensure_profile");
+    await ensureProfile(supabase, user);
     ({ data } = await supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).maybeSingle());
   }
   const profile: Profile = (data as Profile) ?? { id: user.id, email: user.email ?? "", name: "", avatar_url: null, locale: "pt-BR" };

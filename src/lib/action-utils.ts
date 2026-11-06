@@ -10,12 +10,15 @@ export function pgFail(err: PostgrestError | { message?: string; code?: string; 
   const msg = err.message ?? "";
   // aparece nos logs do servidor (Vercel → Logs) para diagnóstico
   console.error("[db]", err.code ?? "", msg, err.details ?? "");
+  // função/tabela inexistente: migrações não aplicadas no Supabase
+  if (err.code === "PGRST202" || err.code === "42883" || err.code === "PGRST205" || err.code === "42P01") return { ok: false, error: "db_outdated", detail: msg };
   if (err.code === "P0001" && APP_CODE.test(msg)) return { ok: false, error: msg, detail: err.details || undefined };
   if (err.code === "42501" || /row-level security|permission denied/i.test(msg)) return { ok: false, error: "forbidden" };
   if (err.code === "23514") return { ok: false, error: /name|title/.test(msg) ? "name_required" : "too_long" };
+  if (err.code === "23503" && /owner_id|profiles|user_id/.test(msg + (err.details ?? ""))) return { ok: false, error: "profile_missing", detail: msg };
   if (err.code === "23503") return { ok: false, error: "not_found" };
   if (err.code === "PGRST116") return { ok: false, error: "not_found" };
-  return { ok: false, error: "generic", detail: err.code };
+  return { ok: false, error: "generic", detail: [err.code, msg].filter(Boolean).join(": ").slice(0, 200) };
 }
 
 export const ok = <T,>(data: T): ActionResult<T> => ({ ok: true, data });

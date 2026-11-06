@@ -45,7 +45,7 @@ export function AccountView({ profile }: { profile: Profile }) {
         setSavedName(res.data.name); setName(res.data.name);
         toast({ kind: "success", message: t("common.saved") });
         router.refresh();
-      } else setError(t(errorKey(res.error)) + (res.error === "generic" && res.detail ? ` (${res.detail})` : ""));
+      } else setError(t(errorKey(res.error)) + ((res.error === "generic" || res.error === "db_outdated") && res.detail ? ` (${res.detail})` : ""));
     } catch { setError(t("error.network")); }
     finally { setSaving(false); }
   };

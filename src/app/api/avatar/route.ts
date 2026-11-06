@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getServerClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { EXT, sniffImage } from "@/lib/image-sniff";
+import { ensureProfile } from "@/lib/ensure-profile";
 
 const BUCKET = "avatars";
 const MAX = 2 * 1024 * 1024;
@@ -10,6 +11,15 @@ const MAX = 2 * 1024 * 1024;
 async function currentName(supabase: Awaited<ReturnType<typeof getServerClient>>, userId: string, fallback: string) {
   const { data } = await supabase.from("profiles").select("name").eq("id", userId).maybeSingle();
   return data?.name || fallback;
+}
+
+/** Salva a URL da foto; usa a função do banco e, se faltar, o servidor. */
+async function saveAvatar(supabase: Awaited<ReturnType<typeof getServerClient>>, userId: string, name: string, url: string | null) {
+  const { error } = await supabase.rpc("update_my_profile", { p_name: name, p_avatar_url: url, p_set_avatar: true });
+  if (!error) return null;
+  if (error.code !== "PGRST202" && error.code !== "42883") return error;
+  const r = await supabase.from("profiles").update({ avatar_url: url }).eq("id", userId).select("id");
+  return r.error ?? (r.data?.length ? null : { code: "not_found", message: "not_found" });
 }
 
 async function clearOld(userId: string, keep?: string) {
@@ -24,6 +34,7 @@ export async function POST(req: NextRequest) {
   const supabase = await getServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "forbidden" }, { status: 401 });
+  await ensureProfile(supabase, user);
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
@@ -43,7 +54,7 @@ export async function POST(req: NextRequest) {
   const url = storage.getPublicUrl(path).data.publicUrl;
 
   const name = await currentName(supabase, user.id, user.email?.split("@")[0] ?? "");
-  const { error } = await supabase.rpc("update_my_profile", { p_name: name, p_avatar_url: url, p_set_avatar: true });
+  const error = await saveAvatar(supabase, user.id, name, url);
   if (error) {
     await storage.remove([path]).catch(() => undefined);
     console.error("[avatar] perfil", error.code, error.message);
@@ -59,7 +70,7 @@ export async function DELETE() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "forbidden" }, { status: 401 });
   const name = await currentName(supabase, user.id, user.email?.split("@")[0] ?? "");
-  const { error } = await supabase.rpc("update_my_profile", { p_name: name, p_avatar_url: null, p_set_avatar: true });
+  const error = await saveAvatar(supabase, user.id, name, null);
   if (error) return NextResponse.json({ error: "generic" }, { status: 400 });
   await clearOld(user.id).catch(() => undefined);
   revalidatePath("/", "layout");

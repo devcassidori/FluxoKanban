@@ -1,5 +1,6 @@
 import { AppShell, type NavProject } from "@/components/app-shell";
 import { requireUser } from "@/lib/supabase/server";
+import { ensureProfile } from "@/lib/ensure-profile";
 import type { Profile } from "@/lib/types";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -10,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   if (!profile) {
     // conta criada antes do gatilho de perfis: cria agora
-    await supabase.rpc("ensure_profile");
+    await ensureProfile(supabase, user);
     ({ data: profile } = await supabase.from("profiles").select("id, email, name, avatar_url, locale").eq("id", user.id).maybeSingle());
   }
   const nav: NavProject[] = (projects ?? []).map((p) => ({

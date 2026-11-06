@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getServerClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { fail, ok, pgFail, str } from "@/lib/action-utils";
+import { ensureProfile } from "@/lib/ensure-profile";
 import type { ActionResult, Profile } from "@/lib/types";
 
 export async function updateProfile(input: { name: string }): Promise<ActionResult<Profile>> {
@@ -12,11 +13,17 @@ export async function updateProfile(input: { name: string }): Promise<ActionResu
   if (!user) return fail("forbidden");
   const name = str(input.name, 80);
   if (!name) return fail("name_required");
-  // A função cria o perfil se ele ainda não existir e devolve a linha salva.
+  await ensureProfile(supabase, user);
   const { data, error } = await supabase.rpc("update_my_profile", { p_name: name });
-  if (error) return pgFail(error);
+  if (!error) { revalidatePath("/", "layout"); return ok(data as Profile); }
+  if (error.code !== "PGRST202" && error.code !== "42883") return pgFail(error);
+  // migração de correção ainda não aplicada: atualiza direto (RLS: só a própria linha)
+  const upd = await supabase.from("profiles").update({ name }).eq("id", user.id)
+    .select("id, email, name, avatar_url, locale");
+  if (upd.error) return pgFail(upd.error);
+  if (!upd.data?.length) return fail("not_found");
   revalidatePath("/", "layout");
-  return ok(data as Profile);
+  return ok(upd.data[0] as Profile);
 }
 
 /** Bloqueia a exclusão enquanto a pessoa for dona de algum projeto (validação pendente nº 7). */
